@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import anime from 'animejs/lib/anime.es.js';
+import gsap from 'gsap';
 
 const props = defineProps({
 	numbersCount: {
@@ -18,13 +18,22 @@ const props = defineProps({
 	noDuplicates: {
 		type: Boolean,
 	},
+	// optional basic animations using gsap
+	noAnimations: {
+		type: Boolean,
+	},
 });
 
 const numbers = ref([]);
 const combinations = ref([]);
 
+// template refs
+const numbersEl = ref();
+const combinationsEl = ref();
+
 onMounted(() => {
 	createNumbersArray();
+	findCombinations();
 });
 
 function createNumbersArray() {
@@ -39,20 +48,19 @@ function createNumbersArray() {
 		} while (props.noDuplicates && randomNumbers.includes(number));
 
 		randomNumbers[i] = number;
-
-		// anime({
-		// 	targets: `.numbers-array li[data-index="${i}"]`,
-		// 	translateY: 250,
-		// 	easing: 'easeInOut',
-		// });
 	}
 
 	numbers.value = randomNumbers;
+
+	animate('numbers');
 }
-// Storing a sorted version of the numbers array can help find combinations in an optimized way.
-// But I've opted for a hash map approach with the unsorted array, because it requires less code.
-// Using an hash map to store indexes of every number in the array, we can easily search for existing complements (number - sum value) using a single for loop.
-// O(n) complexity
+
+/**
+ * Storing a sorted version of the numbers array can help find combinations in an optimized way.
+ * But I've opted for a hash map approach with the unsorted array, because it requires less code.
+ * Using an hash map to store indexes of every number in the array, we can easily search for existing complements (number - sum value) with a single for loop.
+ * O(n) complexity
+ **/
 function findCombinations() {
 	const pairs = [];
 	const numbersMap = new Map();
@@ -70,6 +78,28 @@ function findCombinations() {
 	}
 
 	combinations.value = pairs;
+
+	if (pairs.length) {
+		animate('combinations');
+	}
+}
+
+function animate(target) {
+	if (props.noAnimations) return;
+
+	if (target === 'numbers' && numbersEl.value) {
+		gsap.fromTo(
+			numbersEl.value,
+			{ opacity: 0, y: 5 },
+			{ opacity: 1, y: 0, ease: 'back' },
+		);
+	} else if (target === 'combinations' && combinationsEl.value) {
+		gsap.fromTo(
+			combinationsEl.value,
+			{ opacity: 0, x: -10 },
+			{ opacity: 1, x: 0 },
+		);
+	}
 }
 </script>
 
@@ -82,7 +112,7 @@ function findCombinations() {
 		<div
 			class="numbers-array border border-3 border-dark-subtle rounded p-2 mt-4 mb-2 text-center"
 		>
-			<ul class="list-inline m-0">
+			<ul ref="numbersEl" class="list-inline m-0">
 				<li
 					v-for="(number, i) in numbers"
 					:key="`${number}-${i}`"
@@ -113,16 +143,22 @@ function findCombinations() {
 		<div class="mt-3">
 			<h2 class="h5 fw-bold">Combinations:</h2>
 
-			<ul v-if="combinations.length" class="combinations-list ps-3">
-				<li
-					v-for="(combination, i) in combinations"
-					:key="`${combination}-${i}`"
-					class="py-1"
+			<Transition :name="noAnimations ? 'none' : 'fade'" mode="out-in">
+				<ul
+					v-if="combinations.length"
+					ref="combinationsEl"
+					class="combinations-list ps-3"
 				>
-					{{ combination[0] }} & {{ combination[1] }}
-				</li>
-			</ul>
-			<span v-else>No combination found 😞</span>
+					<li
+						v-for="(combination, i) in combinations"
+						:key="`${combination}-${i}`"
+						class="py-1"
+					>
+						{{ combination[0] }} & {{ combination[1] }}
+					</li>
+				</ul>
+				<span v-else>No combination found 😞</span>
+			</Transition>
 		</div>
 	</div>
 </template>
@@ -147,6 +183,19 @@ function findCombinations() {
 		vertical-align: top;
 		line-height: 1.2rem;
 		padding-right: 0.3rem;
+	}
+}
+
+// animations
+.fade {
+	&-enter-active,
+	&-leave-active {
+		transition: all 0.25s ease-out;
+	}
+
+	&-enter-from,
+	&-leave-to {
+		opacity: 0;
 	}
 }
 </style>
